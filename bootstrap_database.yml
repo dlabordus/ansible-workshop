@@ -3,24 +3,22 @@
 - hosts: database
   
   tasks:
-    - ping:
-    
-#    - name: Ensure the user Ansible exists
-#      user:
-#        name: ansible
-#        password: "{{ 'ansible' |password_hash('sha512', 'ansible-controller-salt') }}"
-#        state: present
-#        shell: /bin/bash
-#        groups: sudo
-#        append: yes
-#      become: true
+    - name: Ensure the user Ansible exists
+      user:
+        name: ansible
+        password: "{{ 'ansible' |password_hash('sha512', 'ansible-controller-salt') }}"
+        state: present
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+      become: true
 
-#    - name: "Verify that the ?? user has the correct authorized_key"
-#      authorized_key:
-#        user: ??
-#        key: "{{ lookup('file', '/vagrant/ansible_key/id_rsa.pub') }}"
-#        state: ??
-#      become: true
+    - name: "Verify that the ansible user has the correct authorized_key"
+      authorized_key:
+        user: ansible
+        key: "{{ lookup('file', '/vagrant/ansible_key/id_rsa.pub') }}"
+        state: present
+      become: true
     
 
 ...
