@@ -1,0 +1,28 @@
+ 
+---
+
+- hosts: controller
+  tasks:
+    - user:
+        name: ansible
+        password: "{{ 'ansible' |password_hash('sha512', 'ansible-controller-salt') }}"
+        state: present
+        shell: /bin/bash
+        groups: sudo
+        append: yes
+      become: true
+      
+    - copy:
+        src: "/vagrant/ansible_key/"
+        dest: "/home/ansible/.ssh/"
+        mode: 0600
+        owner: ansible
+      become: true
+      
+    - apt:
+        name: sshpass
+        state: present
+        update_cache: yes
+      become: true
+
+...
