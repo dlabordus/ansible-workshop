@@ -40,5 +40,85 @@
         name: ssh
         state: restarted
       become: true
-  
+      
+- hosts: database
+  tasks:
+    - name: Add APT key for Postgres
+      apt_key:
+        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        state: present
+      become: true
+    
+    - name: Add APT repo for Postgres
+      apt_repository:
+        repo: deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main
+        filename: postgres
+        state: present
+      become: true
+        
+    - name: Verify installation of PostgreSQL 9.5 and Ansible adapter for Python
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      with_items:
+        - python-psycopg2
+        - postgresql-9.5
+      become: true
+ 
+    - name: Verify existence of the f8forum_db
+      postgresql_db:
+        name: f8forum_db
+        state: present
+      become_user: postgres
+      become: true
+    
+    - name: Revoke all permissions for the f8forum_db
+      postgresql_privs:
+        db: f8forum_db
+        privs: ALL
+        type: database
+        role: PUBLIC
+        state: absent
+      become_user: postgres
+      become: true
+      
+    - name: Add a user for the f8forum_db, granting all rights
+      postgresql_user:
+        name: f8forum_user
+        password: f8forum_user
+        db: f8forum_db
+        priv: ALL
+        role_attr_flags: CREATEDB,NOSUPERUSER
+      become_user: postgres
+      become: true
+        
+    - name: Allow postgres access from the Java web application
+      lineinfile:
+        dest: /etc/postgresql/9.5/main/pg_hba.conf
+        line: 'host  all  all   192.168.33.20/24   md5'
+      become: true
+      notify: Reload postgres
+      
+    - name: Verify that Postgres listens on all interfaces
+      lineinfile:
+        dest:  /etc/postgresql/9.5/main/postgresql.conf 
+        insertafter: "^#listen_addresses"
+        line: "listen_addresses = '*'"
+        regexp:  "^listen_addresses"
+      become: true   
+      notify: Reload postgres
+      
+    - name: Open port 5432 in UFW
+      ufw:
+        port: 5432
+        policy: allow
+      become: true
+    
+  handlers:
+    - name: Reload postgres
+      service:
+        name: postgresql
+        state: reloaded
+      become: true
 ...
