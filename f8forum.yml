@@ -121,4 +121,51 @@
         name: postgresql
         state: reloaded
       become: true
+      
+      
+- hosts: web
+  
+  tasks:
+    - name: Add APT repo for Jessie backports
+      apt_repository:
+        repo: deb http://ftp.de.debian.org/debian jessie-backports main
+        state: present
+      become: true
+    
+    - name: Install OpenJDK 8 JRE
+      apt:
+        name: openjdk-8-jre
+        state: present
+        default_release: jessie-backports
+        update_cache: yes
+      become: true
+    
+    - name: Create dir /opt/f8forum
+      file:
+        dest: /opt/f8forum
+        state: directory
+      become: true
+    
+    - name: Copy f8forum JAR
+      copy:
+        src: /vagrant/web/f8forum.jar
+        dest: /opt/f8forum/
+      become: true  
+    
+    - name: Copy startup script
+      copy:
+        src: /vagrant/web/start.sh
+        dest: /opt/f8forum/
+        mode: 0751
+      become: true  
+      
+    - name: Start F8Forum application
+      command: /opt/f8forum/start.sh
+      become: true
+      
+    - name: Open port 8080 in UFW
+      ufw:
+        port: 8080
+        policy: allow
+      become: true
 ...
