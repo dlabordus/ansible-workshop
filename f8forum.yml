@@ -40,27 +40,27 @@
         name: ssh
         state: restarted
       become: true
-      
+
 - hosts: database
   tasks:
-    - name: Add APT key for Postgres
+    - name: Verify Postgres repo key is available
       apt_key:
-        url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+        url: "https://www.postgresql.org/media/keys/ACCC4CF8.asc"
         state: present
       become: true
-    
-    - name: Add APT repo for Postgres
+
+    - name: Add postgres repo
       apt_repository:
-        repo: deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main
-        filename: postgres
-        state: present
-      become: true
-        
-    - name: Verify installation of PostgreSQL 9.5 and Ansible adapter for Python
-      apt:
-        name: "{{ item }}"
+        repo: "deb http://apt.postgresql.org/pub/repos/apt/ jessie-pgdg main"
         state: present
         update_cache: yes
+      become: true
+
+    - name: "Verify {{ item }} is installed" 
+      apt:
+        name: "{{ item }}"
+        update_cache: yes
+        cache_valid_time: 3600
       with_items:
         - python-psycopg2
         - postgresql-9.5
@@ -83,42 +83,88 @@
       become_user: postgres
       become: true
       
-    - name: Add a user for the f8forum_db, granting all rights
+    - name: Create F8Forum database
+      postgresql_db:
+        name: f8forum_db
+      become_user: postgres
+      become: true
+
+    - name: Create F8Forum user
       postgresql_user:
         name: f8forum_user
         password: f8forum_user
         db: f8forum_db
         priv: ALL
-        role_attr_flags: CREATEDB,NOSUPERUSER
+        role_attr_flags: NOCREATEDB,NOSUPERUSER
       become_user: postgres
       become: true
-        
-    - name: Allow postgres access from the Java web application
+
+    - name: Allow access from the Java web application
       lineinfile:
         dest: /etc/postgresql/9.5/main/pg_hba.conf
-        line: 'host  all  all   192.168.33.20/24   md5'
+        line: 'host  all  all   192.168.33.20/32   md5'
       become: true
-      notify: Reload postgres
-      
-    - name: Verify that Postgres listens on all interfaces
+      notify: Restart PostgreSQL service
+
+    - name: Allow access from all addresses
       lineinfile:
-        dest:  /etc/postgresql/9.5/main/postgresql.conf 
-        insertafter: "^#listen_addresses"
+        dest: /etc/postgresql/9.5/main/postgresql.conf
         line: "listen_addresses = '*'"
-        regexp:  "^listen_addresses"
-      become: true   
-      notify: Reload postgres
-      
-    - name: Open port 5432 in UFW
+        insertafter: "#listen_addresses = ’localhost’"
+      become: true
+      notify: Restart PostgreSQL service
+
+    - name: Allow access on the Postgres port
       ufw:
         port: 5432
         policy: allow
       become: true
     
   handlers:
-    - name: Reload postgres
+    - name: Restart PostgreSQL service
       service:
-        name: postgresql
-        state: reloaded
+        name: ssh
+        state: restarted
+      become: true
+
+- hosts: web
+  tasks:
+    - name: Add Jessie backports repo
+      apt_repository:
+        repo: "deb http://ftp.de.debian.org/debian jessie-backports main"
+        state: present
+        update_cache: yes
+      become: true
+
+    - name: Install OpenJDK JRE 8
+      apt:
+        name: openjdk-8-jre
+        default_release: jessie-backports
+        update_cache: yes
+        cache_valid_time: 3600
+      become: true
+
+    - name: Create the F8Forum data directory
+      file:
+        path: /opt/f8forum
+        state: directory
+      become: true
+
+    - name: Copy start script into the data directory
+      copy:
+        src: web/start.sh
+        dest: /opt/f8forum
+        mode: 0755
+      become: true
+
+    - name: Copy F8Forum Jar into the data directory
+      copy:
+        src: web/f8forum.jar
+        dest: /opt/f8forum
+        mode: 0755
+      become: true
+
+    - name: Start F8Forum application
+      command: /opt/f8forum/start.sh &
       become: true
 ...
