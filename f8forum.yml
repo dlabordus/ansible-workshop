@@ -159,13 +159,28 @@
         mode: 0751
       become: true  
       
-    - name: Start F8Forum application
-      command: /opt/f8forum/start.sh
-      become: true
-      
     - name: Open port 8080 in UFW
       ufw:
         port: 8080
         policy: allow
+      become: true
+      
+    - name: Copy service script
+      copy:
+        src: /vagrant/web/f8forum_startscript
+        dest: /etc/init.d/f8forum
+        mode: 0751
+      become: true  
+      
+    - name: Register application as a service
+      command: update-rc.d f8forum defaults
+      args:
+        creates: /etc/rc5.d/*f8forum
+      become: true
+      
+    - name: Start the F8Forum
+      service:
+        name: f8forum
+        state: started
       become: true
 ...
