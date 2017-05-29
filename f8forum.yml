@@ -12,26 +12,28 @@
       notify: Restart SSH
       become: true
       
-    - name: Verify that UFW is installed
+    - name: Verify UFW is present on the system
       apt:
-        name: ufw
-        state: present
+       name: ufw
+       state: present
       become: true
-      register: ufw_installation
-       
-    - name: Allow access on SSH port
-      ufw:
-        port: ssh
-        policy: allow
-        rule: limit
-        proto: tcp
-      become: true
-      
-    - name: Configure UFW to deny access on all ports
-      ufw:
-        state: enabled
-        policy: deny
-      become: true
+      register: ufw_installation  
+
+    - block:  
+      - name: Deny access on all ports
+        ufw:
+          policy: deny
+          state: enabled
+        become: true
+
+      - name: Allow access on the SSH port
+        ufw:
+          port: ssh
+          policy: allow
+          rule: limit
+          proto: tcp
+          
+        become: true
       when: ufw_installation.changed
       
   handlers:
